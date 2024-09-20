@@ -126,6 +126,14 @@ PrivateKey = {Path = "./test/sequencer.keystore", Password = "testonly"}
 
 [Aggregator]
 Host = "0.0.0.0"
+BtcHost = "host.docker.internal:8332"
+BtcNet = "regtest"
+BtcRpcUser = "regtest"
+BtcRpcPass = "regtest"
+BtcWalletName = "WalletName"
+BtcWalletPass = "WalletPass"
+BtcPrivateKey = "PK"
+BtcDisableTLS = true
 Port = 50081
 RetryTime = "5s"
 VerifyProofInterval = "30s"
