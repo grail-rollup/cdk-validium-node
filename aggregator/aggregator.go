@@ -26,6 +26,9 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 	"google.golang.org/grpc"
@@ -353,6 +356,69 @@ func (a *Aggregator) settleDirect(
 		},
 		nil,
 	)
+
+	// ------------------------------ TODO: delete later
+
+	// Needed config properties:
+	// - Host - RPC url
+	// - Wallet name - RPC wallet name
+	// - User - RPC username
+	// - Pass - RPC password
+	// - Private key - might not be needed later; we can load the wallet, call `listunspent` and panic if empty
+	// ----------
+	// - DisableTLS? - later; needed for prod; whether transport layer security should be disabled
+	// - Wallet password? - maybe later; need more testing
+
+	// Log the tx data.
+	// We only need the newLocalExitRoot, newStateRoot and the proof
+	// To get them:
+	// newLocalExitRoot := data[132:164]
+	// newStateRoot := data[164:196]
+	// proof := data[228:]
+	log.Debugf("123321 data: %s", common.Bytes2Hex(data))
+
+	// The container cannot acces localhost directly; we use `host.docker.internal`
+	// We add wallet at the end of the Host; I think it is needed for `listunspent`
+	netParams := &chaincfg.RegressionNetParams
+	config := &rpcclient.ConnConfig{
+		Host:         "host.docker.internal:8332/wallet/go-wallet",
+		User:         "regtest",
+		Pass:         "regtest",
+		HTTPPostMode: true,
+		DisableTLS:   true,
+	}
+
+	client, err := rpcclient.New(config, nil)
+	if err != nil {
+		panic(err)
+	}
+	defer client.Shutdown()
+
+	// Key taken from the Mastering LN book
+	privkey := "cSaejkcWwU25jMweWEewRSsrVQq2FGTij1xjXv4x1XvxVRF1ZCr3"
+	descriptor := fmt.Sprintf("pkh(%s)", privkey)
+	descriptorInfo, err := client.GetDescriptorInfo(descriptor)
+	if err != nil {
+		log.Fatal(err)
+	}
+	checksum := descriptorInfo.Checksum
+
+	// Derive address from the private key
+	result, err := client.DeriveAddresses(fmt.Sprintf("%s#%s", descriptor, checksum), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	address := (*result)[0]
+	decoded_address, _ := btcutil.DecodeAddress(address, netParams)
+
+	// Mine some coins to the address
+	var tries *int64 = new(int64)
+	*tries = 1000
+	hashes, err := client.GenerateToAddress(110, decoded_address, tries)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Debugf("new blocks: ", len(hashes))
 
 	return true
 }
