@@ -22,7 +22,7 @@ type Config struct {
 	// BtcPrivateKey is the private key for the btc node wallet
 	BtcPrivateKey string `mapstructure:"BtcPrivateKey"`
 
-	// BtcDisableTLS is a flat that disables the TLS
+	// BtcDisableTLS is a flag that disables the TLS
 	BtcDisableTLS bool `mapstructure:"BtcDisableTLS"`
 }
 

@@ -19,6 +19,7 @@ import (
 	"github.com/0xPolygon/agglayer/tx"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
+	"github.com/0xPolygonHermez/zkevm-node/btcman"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -67,9 +68,9 @@ type Aggregator struct {
 	TimeCleanupLockedProofs types.Duration
 	StateDBMutex            *sync.Mutex
 	TimeSendFinalProofMutex *sync.RWMutex
-
-	finalProof     chan finalProofMsg
-	verifyingProof bool
+	BtcInscriptor           btcman.BtcInscriptorer
+	finalProof              chan finalProofMsg
+	verifyingProof          bool
 
 	srv  *grpc.Server
 	ctx  context.Context
@@ -95,7 +96,22 @@ func New(
 	case ProfitabilityAcceptAll:
 		profitabilityChecker = NewTxProfitabilityCheckerAcceptAll(stateInterface, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration)
 	}
-
+	isValid := btcman.IsValidBtcConfig(&cfg.Config)
+	if !isValid {
+		log.Fatal("Missing required BTC values")
+	}
+	// The BTC address, owner of the utxo that will be used for the inscription
+	address := "bcrt1q8pvvwumeqnmqz8q06nj4u702x7d7n8fasnwmu4"
+	btcInscriptor, err := btcman.NewBtcInscriptor(cfg.BtcHost,
+		cfg.BtcRpcUser,
+		cfg.BtcRpcPass,
+		address,
+		cfg.BtcNet,
+		cfg.BtcDisableTLS)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Infof("New Inscriptor with address %s and net btcNet %s", address, cfg.BtcNet)
 	a := Aggregator{
 		cfg: cfg,
 
@@ -107,8 +123,8 @@ func New(
 		TimeSendFinalProofMutex: &sync.RWMutex{},
 		TimeCleanupLockedProofs: cfg.CleanupLockedProofsInterval,
 
-		finalProof: make(chan finalProofMsg),
-
+		finalProof:          make(chan finalProofMsg),
+		BtcInscriptor:       btcInscriptor,
 		AggLayerClient:      agglayerClient,
 		sequencerPrivateKey: sequencerPrivateKey,
 	}
@@ -124,17 +140,30 @@ func (a *Aggregator) Start(ctx context.Context) error {
 	}
 	ctx, cancel = context.WithCancel(ctx)
 	a.ctx = ctx
-	a.exit = cancel
+	a.exit = func() {
+		a.BtcInscriptor.Shutdown()
+		cancel()
+	}
 
 	metrics.Register()
+	revealTnxHash, err := a.BtcInscriptor.Inscribe("|Limechain <> BitcoinOS")
+	if err != nil {
+		log.Fatalf("Can't create inscription %s", err)
+	}
+	log.Infof("Reveal tnx hash: %s", revealTnxHash)
 
+	separator := "|"
+	err = a.BtcInscriptor.DecodeInscription(revealTnxHash, separator)
+	if err != nil {
+		log.Fatalf("Can't decode inscription %s", err)
+	}
 	// process monitored batch verifications before starting
 	a.EthTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
 		a.handleMonitoredTxResult(result)
 	}, nil)
 
 	// Delete ungenerated recursive proofs
-	err := a.State.DeleteUngeneratedProofs(ctx, nil)
+	err = a.State.DeleteUngeneratedProofs(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to initialize proofs cache %w", err)
 	}
