@@ -551,7 +551,7 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 	return seqSender
 }
 
-func runAggregator(ctx context.Context, c aggregator.Config, etherman *etherman.Client, btcman *btcman.Client, ethTxManager *ethtxmanager.Client, st *state.State) {
+func runAggregator(ctx context.Context, c aggregator.Config, etherman *etherman.Client, btcman btcman.Clienter, ethTxManager *ethtxmanager.Client, st *state.State) {
 	var (
 		aggCli *agglayerClient.Client
 		pk     *ecdsa.PrivateKey

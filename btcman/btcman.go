@@ -24,13 +24,13 @@ type Client struct {
 	address   btcutil.Address
 }
 
-type btcmanInterface interface {
+type Clienter interface {
 	Inscribe(data []byte) (string, error)
 	DecodeInscription(txHash string) error
 	Shutdown()
 }
 
-func NewClient(cfg Config) (*Client, error) {
+func NewClient(cfg Config) (Clienter, error) {
 	isValid := IsValidBtcConfig(&cfg)
 	if !isValid {
 		log.Fatal("Missing required BTC values")
@@ -313,18 +313,18 @@ func (client *Client) getInscriptionMessage(txHex string) ([]byte, error) {
 	txBytes, err := hex.DecodeString(txHex)
 	if err != nil {
 		log.Errorf("Error decoding hex string: %s", err)
-		return []byte{}, err
+		return nil, err
 	}
 	var targetTx wire.MsgTx
 
 	err = targetTx.Deserialize(bytes.NewReader(txBytes))
 	if err != nil {
 		log.Infof("Error deserializing transaction: %s", err)
-		return []byte{}, err
+		return nil, err
 	}
 	if len(targetTx.TxIn) < 1 || len(targetTx.TxIn[0].Witness) < 2 {
 		log.Infof("Error getting witness data: %s\n", err)
-		return []byte{}, err
+		return nil, err
 	}
 	inscriptionHex := hex.EncodeToString(targetTx.TxIn[0].Witness[1])
 
@@ -336,7 +336,7 @@ func (client *Client) getInscriptionMessage(txHex string) ([]byte, error) {
 	// Get the message from the inscription
 	markerIndex := strings.Index(inscriptionHex, utfMarker)
 	if markerIndex == -1 {
-		return []byte{}, fmt.Errorf("inscription hex is invalid")
+		return nil, fmt.Errorf("inscription hex is invalid")
 	}
 	messageIndex := markerIndex + utfMarkerLength
 
@@ -344,7 +344,7 @@ func (client *Client) getInscriptionMessage(txHex string) ([]byte, error) {
 	decodedBytes, err := hex.DecodeString(messageHex)
 	if err != nil {
 		log.Errorf("Error decoding hex string: %s", err)
-		return []byte{}, nil
+		return nil, err
 	}
 	return decodedBytes, nil
 }
