@@ -358,13 +358,11 @@ func (a *Aggregator) settleDirect(
 		nil,
 	)
 
-	log.Debugf("data: %s", common.Bytes2Hex(data))
-
-	newLocalExitRoot := hex.EncodeToString(data[132:164])
-	newStateRoot := hex.EncodeToString(data[164:196])
-	proofData := hex.EncodeToString(data[228:])
-
+	newLocalExitRoot := hex.EncodeToString(inputs.NewLocalExitRoot)
+	newStateRoot := hex.EncodeToString(inputs.NewStateRoot)
+	proofData := strings.TrimPrefix(inputs.FinalProof.Proof, "0x")
 	message := fmt.Sprintf("%s%s%s", newLocalExitRoot, newStateRoot, proofData)
+
 	log.Debugf("newLocalExitRoot: %s", newLocalExitRoot)
 	log.Debugf("newStateRoot: %s", newStateRoot)
 	log.Debugf("proof data: %s", proofData)
