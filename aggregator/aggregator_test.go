@@ -27,6 +27,7 @@ type mox struct {
 	stateMock    *mocks.StateMock
 	ethTxManager *mocks.EthTxManager
 	etherman     *mocks.Etherman
+	btcman       *mocks.Btcman
 	proverMock   *mocks.ProverMock
 }
 
@@ -191,7 +192,8 @@ func TestSendFinalProof(t *testing.T) {
 			stateMock := mocks.NewStateMock(t)
 			ethTxManager := mocks.NewEthTxManager(t)
 			etherman := mocks.NewEtherman(t)
-			a, err := New(cfg, stateMock, ethTxManager, etherman, nil, nil)
+			btcman := mocks.NewBtcman(t)
+			a, err := New(cfg, stateMock, ethTxManager, etherman, btcman, nil, nil)
 			require.NoError(err)
 			a.ctx, a.exit = context.WithCancel(context.Background())
 			m := mox{
@@ -685,8 +687,9 @@ func TestTryAggregateProofs(t *testing.T) {
 			stateMock := mocks.NewStateMock(t)
 			ethTxManager := mocks.NewEthTxManager(t)
 			etherman := mocks.NewEtherman(t)
+			btcman := mocks.NewBtcman(t)
 			proverMock := mocks.NewProverMock(t)
-			a, err := New(cfg, stateMock, ethTxManager, etherman, nil, nil)
+			a, err := New(cfg, stateMock, ethTxManager, etherman, btcman, nil, nil)
 			require.NoError(err)
 			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator") //nolint:staticcheck
 			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
@@ -1028,8 +1031,9 @@ func TestTryGenerateBatchProof(t *testing.T) {
 			stateMock := mocks.NewStateMock(t)
 			ethTxManager := mocks.NewEthTxManager(t)
 			etherman := mocks.NewEtherman(t)
+			btcman := mocks.NewBtcman(t)
 			proverMock := mocks.NewProverMock(t)
-			a, err := New(cfg, stateMock, ethTxManager, etherman, nil, nil)
+			a, err := New(cfg, stateMock, ethTxManager, etherman, btcman, nil, nil)
 			require.NoError(err)
 			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator") //nolint:staticcheck
 			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
@@ -1305,8 +1309,9 @@ func TestTryBuildFinalProof(t *testing.T) {
 			stateMock := mocks.NewStateMock(t)
 			ethTxManager := mocks.NewEthTxManager(t)
 			etherman := mocks.NewEtherman(t)
+			btcman := mocks.NewBtcman(t)
 			proverMock := mocks.NewProverMock(t)
-			a, err := New(cfg, stateMock, ethTxManager, etherman, nil, nil)
+			a, err := New(cfg, stateMock, ethTxManager, etherman, btcman, nil, nil)
 			require.NoError(err)
 			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator") //nolint:staticcheck
 			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
@@ -1435,8 +1440,9 @@ func TestIsSynced(t *testing.T) {
 			stateMock := mocks.NewStateMock(t)
 			ethTxManager := mocks.NewEthTxManager(t)
 			etherman := mocks.NewEtherman(t)
+			btcman := mocks.NewBtcman(t)
 			proverMock := mocks.NewProverMock(t)
-			a, err := New(cfg, stateMock, ethTxManager, etherman, nil, nil)
+			a, err := New(cfg, stateMock, ethTxManager, etherman, btcman, nil, nil)
 			require.NoError(err)
 			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator") //nolint:staticcheck
 			a.ctx, a.exit = context.WithCancel(aggregatorCtx)
@@ -1502,8 +1508,9 @@ func TestWaitForSynchronizerToSyncUp(t *testing.T) {
 			stateMock := mocks.NewStateMock(t)
 			ethTxManager := mocks.NewEthTxManager(t)
 			etherman := mocks.NewEtherman(t)
+			btcman := mocks.NewBtcman(t)
 			proverMock := mocks.NewProverMock(t)
-			a, err := New(cfg, stateMock, ethTxManager, etherman, nil, nil)
+			a, err := New(cfg, stateMock, ethTxManager, etherman, btcman, nil, nil)
 			require.NoError(t, err)
 			aggregatorCtx := context.WithValue(context.Background(), "owner", "aggregator") //nolint:staticcheck
 			a.ctx, a.exit = context.WithCancel(aggregatorCtx)

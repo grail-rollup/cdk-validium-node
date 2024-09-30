@@ -79,6 +79,15 @@ ForcedGas = 0
 GasPriceMarginFactor = 1
 MaxGasPriceLimit = 0
 
+[Btcman]
+Host = "host.docker.internal"
+Port = "8332"
+RpcUser = "regtest"
+RpcPass = "regtest"
+WalletName = "go-wallet"
+PrivateKey = "cSaejkcWwU25jMweWEewRSsrVQq2FGTij1xjXv4x1XvxVRF1ZCr3"
+Net = "regtest"
+
 [RPC]
 Host = "0.0.0.0"
 Port = 8545

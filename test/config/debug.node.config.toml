@@ -66,6 +66,15 @@ MultiGasProvider = false
 	[Etherman.Etherscan]
 		ApiKey = ""
 
+[Btcman]
+Host = "host.docker.internal"
+Port = "8332"
+RpcUser = "regtest"
+RpcPass = "regtest"
+WalletName = "go-wallet"
+PrivateKey = "cSaejkcWwU25jMweWEewRSsrVQq2FGTij1xjXv4x1XvxVRF1ZCr3"
+Net = "regtest"
+
 [RPC]
 Host = "0.0.0.0"
 Port = 8123
@@ -126,14 +135,6 @@ PrivateKey = {Path = "./test/sequencer.keystore", Password = "testonly"}
 
 [Aggregator]
 Host = "0.0.0.0"
-BtcHost = "host.docker.internal:8332"
-BtcNet = "regtest"
-BtcRpcUser = "regtest"
-BtcRpcPass = "regtest"
-BtcWalletName = "WalletName"
-BtcWalletPass = "WalletPass"
-BtcPrivateKey = "PK"
-BtcDisableTLS = true
 Port = 50081
 RetryTime = "5s"
 VerifyProofInterval = "30s"

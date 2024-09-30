@@ -15,22 +15,24 @@ import (
 )
 
 type testContext struct {
-	inscriptor *BtcInscriptor
+	btcman     *Client
 	mockClient *mocks.MockBtcRpcClient
 }
 
 func setupTest(_ testing.TB) *testContext {
 	mockClient := new(mocks.MockBtcRpcClient)
+	netParams := &chaincfg.RegressionNetParams
 	const btcAddress string = "bcrt1qfulf03tc5g9z8r20usrrv644w2a2gw0dzpyel5"
+	address, _ := btcutil.DecodeAddress(btcAddress, netParams)
 
-	btcInscriptor := BtcInscriptor{
-		client:  mockClient,
-		net:     &chaincfg.RegressionNetParams,
-		address: btcAddress,
+	btcman := Client{
+		BtcClient: mockClient,
+		netParams: netParams,
+		address:   address,
 	}
 
 	return &testContext{
-		inscriptor: &btcInscriptor,
+		btcman:     &btcman,
 		mockClient: mockClient,
 	}
 }
@@ -74,7 +76,7 @@ func TestGetUtxoAboveThreshold(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ctx.inscriptor.getIndexOfUtxoAboveThreshold(tt.threshold, tt.utxos)
+			result := ctx.btcman.getIndexOfUtxoAboveThreshold(tt.threshold, tt.utxos)
 			assert.Equal(t, tt.expectedIdx, result)
 		})
 	}
@@ -117,7 +119,7 @@ func TestGetTransaction(t *testing.T) {
 				ctx.mockClient.On("GetTransaction", hash).Return(tt.mockResp, tt.mockErr)
 			}
 
-			result, err := ctx.inscriptor.getTransaction(tt.txHash)
+			result, err := ctx.btcman.getTransaction(tt.txHash)
 
 			assert.Equal(t, tt.expected, result)
 			if tt.expectedErr != nil {
@@ -134,7 +136,7 @@ func TestGetTransaction(t *testing.T) {
 
 func TestListUnspentByAddress(t *testing.T) {
 	ctx := setupTest(t)
-	btcAddress, _ := btcutil.DecodeAddress(ctx.inscriptor.address, ctx.inscriptor.net)
+	btcAddress := ctx.btcman.address
 
 	tests := []struct {
 		name        string
@@ -208,10 +210,10 @@ func TestListUnspentByAddress(t *testing.T) {
 		{
 			name:        "No UTXOs available",
 			address:     &btcAddress,
-			mockResp:    nil,
+			mockResp:    []btcjson.ListUnspentResult{},
 			mockErr:     nil,
-			expected:    nil,
-			expectedErr: fmt.Errorf("no utxos spendable with address %s", btcAddress.EncodeAddress()),
+			expected:    []btcjson.ListUnspentResult{},
+			expectedErr: nil,
 		},
 	}
 
@@ -219,15 +221,15 @@ func TestListUnspentByAddress(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			mockClient := new(mocks.MockBtcRpcClient)
-			inscriptor := &BtcInscriptor{
-				client:  mockClient,
-				net:     &chaincfg.RegressionNetParams,
-				address: btcAddress.String(),
+			btcman := &Client{
+				BtcClient: mockClient,
+				netParams: &chaincfg.RegressionNetParams,
+				address:   btcAddress,
 			}
 
-			mockClient.On("ListUnspentMinMaxAddresses", 0, 99999, []btcutil.Address{*tt.address}).Return(tt.mockResp, tt.mockErr)
+			mockClient.On("ListUnspentMinMaxAddresses", 0, 999999, []btcutil.Address{*tt.address}).Return(tt.mockResp, tt.mockErr)
 
-			result, err := inscriptor.listUnspentByAddress(tt.address)
+			result, err := btcman.listUnspent()
 
 			assert.Equal(t, tt.expected, result)
 			if tt.expectedErr != nil {
@@ -243,7 +245,7 @@ func TestListUnspentByAddress(t *testing.T) {
 
 func TestCreateInscriptionRequest(t *testing.T) {
 	ctx := setupTest(t)
-	btcAddress, _ := btcutil.DecodeAddress(ctx.inscriptor.address, ctx.inscriptor.net)
+	btcAddress := ctx.btcman.address
 	hash, err := chainhash.NewHashFromStr("572d859a88a26af3ca7c7715f3e9565ec5f53a040ca6ec8a208933075ac43421")
 	if err != nil {
 		fmt.Println(err)
@@ -277,7 +279,7 @@ func TestCreateInscriptionRequest(t *testing.T) {
 				FeeRate:       2,
 				DataList: []InscriptionData{
 					{
-						ContentType: "text/plain;charset=utf-8",
+						ContentType: "application/octet-stream",
 						Body:        []byte("Hello, world!"),
 						Destination: btcAddress.EncodeAddress(),
 					},
@@ -319,16 +321,16 @@ func TestCreateInscriptionRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockClient := new(mocks.MockBtcRpcClient)
-			ctx.inscriptor.client = mockClient
+			ctx.btcman.BtcClient = mockClient
 			if tt.mockUTXO != nil {
-				mockClient.On("ListUnspentMinMaxAddresses", 0, 99999, []btcutil.Address{btcAddress}).
+				mockClient.On("ListUnspentMinMaxAddresses", 0, 999999, []btcutil.Address{btcAddress}).
 					Return([]btcjson.ListUnspentResult{*tt.mockUTXO}, tt.mockErr)
 			} else {
-				mockClient.On("ListUnspentMinMaxAddresses", 0, 99999, []btcutil.Address{btcAddress}).
+				mockClient.On("ListUnspentMinMaxAddresses", 0, 999999, []btcutil.Address{btcAddress}).
 					Return(nil, tt.mockErr)
 			}
 
-			result, err := ctx.inscriptor.createInscriptionRequest(tt.message, tt.utxoThreshold, tt.consolidateTxFee)
+			result, err := ctx.btcman.createInscriptionRequest([]byte(tt.message), tt.utxoThreshold, tt.consolidateTxFee)
 
 			assert.Equal(t, tt.expected, result)
 			if tt.expectedErr != nil {
@@ -344,20 +346,20 @@ func TestCreateInscriptionRequest(t *testing.T) {
 
 func TestConsolidateUTXOS(t *testing.T) {
 	ctx := setupTest(t)
-	address, _ := btcutil.DecodeAddress(ctx.inscriptor.address, ctx.inscriptor.net)
+	address := ctx.btcman.address
 	// Test case 1: Successful consolidation
 	utxos := []btcjson.ListUnspentResult{
 		{TxID: "txid1", Vout: 0, Amount: 0.00001},
 		{TxID: "txid2", Vout: 1, Amount: 0.00002},
-		{TxID: "txid3", Vout: 2, Amount: 0.000005},
+		{TxID: "txid3", Vout: 2, Amount: 0.000006},
 		{TxID: "txid1", Vout: 3, Amount: 0.00001},
 		{TxID: "txid2", Vout: 5, Amount: 0.00002},
-		{TxID: "txid3", Vout: 6, Amount: 0.000005},
+		{TxID: "txid3", Vout: 6, Amount: 0.000006},
 		{TxID: "txid2", Vout: 7, Amount: 0.00002},
-		{TxID: "txid3", Vout: 8, Amount: 0.000005},
-		{TxID: "txid3", Vout: 9, Amount: 0.000005},
+		{TxID: "txid3", Vout: 8, Amount: 0.000006},
+		{TxID: "txid3", Vout: 9, Amount: 0.000006},
 		{TxID: "txid2", Vout: 10, Amount: 0.00002},
-		{TxID: "txid3", Vout: 11, Amount: 0.000005},
+		{TxID: "txid3", Vout: 11, Amount: 0.000006},
 	}
 	threshold := float64(10000)
 	consolidationTxFee := 0.00001
@@ -368,7 +370,7 @@ func TestConsolidateUTXOS(t *testing.T) {
 
 	ctx.mockClient.On("SendRawTransaction", mock.Anything, false).Return(&chainhash.Hash{}, nil)
 
-	txHash, err := ctx.inscriptor.consolidateUTXOS(utxos, threshold, consolidationTxFee, &address)
+	txHash, err := ctx.btcman.consolidateUTXOS(utxos, threshold, consolidationTxFee, &address)
 	assert.NoError(t, err)
 	assert.NotNil(t, txHash)
 
@@ -377,7 +379,7 @@ func TestConsolidateUTXOS(t *testing.T) {
 		{TxID: "txid1", Vout: 0, Amount: 0.000001},
 	}
 
-	txHash, err = ctx.inscriptor.consolidateUTXOS(utxos, threshold, consolidationTxFee, &address)
+	txHash, err = ctx.btcman.consolidateUTXOS(utxos, threshold, consolidationTxFee, &address)
 	assert.NoError(t, err)
 	assert.Nil(t, txHash)
 }
@@ -393,10 +395,10 @@ func TestGetUTXO(t *testing.T) {
 		{TxID: "txid2", Vout: 1, Amount: 0.00021},
 	}
 
-	address, _ := btcutil.DecodeAddress(ctx.inscriptor.address, ctx.inscriptor.net)
+	address := ctx.btcman.address
 
-	ctx.mockClient.On("ListUnspentMinMaxAddresses", 0, 99999, []btcutil.Address{address}).Return(utxos, nil)
-	utxo, err := ctx.inscriptor.getUTXO(utxoThreshold, consolidationTxFee)
+	ctx.mockClient.On("ListUnspentMinMaxAddresses", 0, 999999, []btcutil.Address{address}).Return(utxos, nil)
+	utxo, err := ctx.btcman.getUTXO(utxoThreshold, consolidationTxFee)
 	assert.NoError(t, err)
 	assert.NotNil(t, utxo)
 	assert.Equal(t, "txid1", utxo.TxID)

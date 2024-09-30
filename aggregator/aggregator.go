@@ -3,6 +3,7 @@ package aggregator
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,7 +20,6 @@ import (
 	"github.com/0xPolygon/agglayer/tx"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
-	"github.com/0xPolygonHermez/zkevm-node/btcman"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -27,9 +27,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/btcsuite/btcd/btcutil"
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 	"google.golang.org/grpc"
@@ -63,12 +60,12 @@ type Aggregator struct {
 	State                   stateInterface
 	EthTxManager            ethTxManager
 	Ethman                  etherman
+	Btcman                  btcman
 	ProfitabilityChecker    aggregatorTxProfitabilityChecker
 	TimeSendFinalProof      time.Time
 	TimeCleanupLockedProofs types.Duration
 	StateDBMutex            *sync.Mutex
 	TimeSendFinalProofMutex *sync.RWMutex
-	BtcInscriptor           btcman.BtcInscriptorer
 	finalProof              chan finalProofMsg
 	verifyingProof          bool
 
@@ -86,6 +83,7 @@ func New(
 	stateInterface stateInterface,
 	ethTxManager ethTxManager,
 	etherman etherman,
+	btcman btcman,
 	agglayerClient client.ClientInterface,
 	sequencerPrivateKey *ecdsa.PrivateKey,
 ) (Aggregator, error) {
@@ -96,35 +94,19 @@ func New(
 	case ProfitabilityAcceptAll:
 		profitabilityChecker = NewTxProfitabilityCheckerAcceptAll(stateInterface, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration)
 	}
-	isValid := btcman.IsValidBtcConfig(&cfg.Config)
-	if !isValid {
-		log.Fatal("Missing required BTC values")
-	}
-	// The BTC address, owner of the utxo that will be used for the inscription
-	address := "bcrt1q8pvvwumeqnmqz8q06nj4u702x7d7n8fasnwmu4"
-	btcInscriptor, err := btcman.NewBtcInscriptor(cfg.BtcHost,
-		cfg.BtcRpcUser,
-		cfg.BtcRpcPass,
-		address,
-		cfg.BtcNet,
-		cfg.BtcDisableTLS)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Infof("New Inscriptor with address %s and net btcNet %s", address, cfg.BtcNet)
 	a := Aggregator{
 		cfg: cfg,
 
 		State:                   stateInterface,
 		EthTxManager:            ethTxManager,
 		Ethman:                  etherman,
+		Btcman:                  btcman,
 		ProfitabilityChecker:    profitabilityChecker,
 		StateDBMutex:            &sync.Mutex{},
 		TimeSendFinalProofMutex: &sync.RWMutex{},
 		TimeCleanupLockedProofs: cfg.CleanupLockedProofsInterval,
 
 		finalProof:          make(chan finalProofMsg),
-		BtcInscriptor:       btcInscriptor,
 		AggLayerClient:      agglayerClient,
 		sequencerPrivateKey: sequencerPrivateKey,
 	}
@@ -141,29 +123,19 @@ func (a *Aggregator) Start(ctx context.Context) error {
 	ctx, cancel = context.WithCancel(ctx)
 	a.ctx = ctx
 	a.exit = func() {
-		a.BtcInscriptor.Shutdown()
+		a.Btcman.Shutdown()
 		cancel()
 	}
 
 	metrics.Register()
-	revealTnxHash, err := a.BtcInscriptor.Inscribe("|Limechain <> BitcoinOS")
-	if err != nil {
-		log.Fatalf("Can't create inscription %s", err)
-	}
-	log.Infof("Reveal tnx hash: %s", revealTnxHash)
 
-	separator := "|"
-	err = a.BtcInscriptor.DecodeInscription(revealTnxHash, separator)
-	if err != nil {
-		log.Fatalf("Can't decode inscription %s", err)
-	}
 	// process monitored batch verifications before starting
 	a.EthTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
 		a.handleMonitoredTxResult(result)
 	}, nil)
 
 	// Delete ungenerated recursive proofs
-	err = a.State.DeleteUngeneratedProofs(ctx, nil)
+	err := a.State.DeleteUngeneratedProofs(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to initialize proofs cache %w", err)
 	}
@@ -386,68 +358,31 @@ func (a *Aggregator) settleDirect(
 		nil,
 	)
 
-	// ------------------------------ TODO: delete later
+	newLocalExitRoot := hex.EncodeToString(inputs.NewLocalExitRoot)
+	newStateRoot := hex.EncodeToString(inputs.NewStateRoot)
+	proofData := strings.TrimPrefix(inputs.FinalProof.Proof, "0x")
+	message := fmt.Sprintf("%s%s%s", newLocalExitRoot, newStateRoot, proofData)
 
-	// Needed config properties:
-	// - Host - RPC url
-	// - Wallet name - RPC wallet name
-	// - User - RPC username
-	// - Pass - RPC password
-	// - Private key - might not be needed later; we can load the wallet, call `listunspent` and panic if empty
-	// ----------
-	// - DisableTLS? - later; needed for prod; whether transport layer security should be disabled
-	// - Wallet password? - maybe later; need more testing
+	log.Debugf("newLocalExitRoot: %s", newLocalExitRoot)
+	log.Debugf("newStateRoot: %s", newStateRoot)
+	log.Debugf("proof data: %s", proofData)
+	log.Debugf("message: %s", message)
 
-	// Log the tx data.
-	// We only need the newLocalExitRoot, newStateRoot and the proof
-	// To get them:
-	// newLocalExitRoot := data[132:164]
-	// newStateRoot := data[164:196]
-	// proof := data[228:]
-	log.Debugf("123321 data: %s", common.Bytes2Hex(data))
-
-	// The container cannot acces localhost directly; we use `host.docker.internal`
-	// We add wallet at the end of the Host; I think it is needed for `listunspent`
-	netParams := &chaincfg.RegressionNetParams
-	config := &rpcclient.ConnConfig{
-		Host:         "host.docker.internal:8332/wallet/go-wallet",
-		User:         "regtest",
-		Pass:         "regtest",
-		HTTPPostMode: true,
-		DisableTLS:   true,
-	}
-
-	client, err := rpcclient.New(config, nil)
+	messageBytes, err := hex.DecodeString(message)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Can't decode message %s", err)
 	}
-	defer client.Shutdown()
 
-	// Key taken from the Mastering LN book
-	privkey := "cSaejkcWwU25jMweWEewRSsrVQq2FGTij1xjXv4x1XvxVRF1ZCr3"
-	descriptor := fmt.Sprintf("pkh(%s)", privkey)
-	descriptorInfo, err := client.GetDescriptorInfo(descriptor)
+	revealTnxHash, err := a.Btcman.Inscribe(messageBytes)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Can't create inscription %s", err)
 	}
-	checksum := descriptorInfo.Checksum
+	log.Infof("Reveal tnx hash: %s", revealTnxHash)
 
-	// Derive address from the private key
-	result, err := client.DeriveAddresses(fmt.Sprintf("%s#%s", descriptor, checksum), nil)
+	err = a.Btcman.DecodeInscription(revealTnxHash)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Can't decode inscription %s", err)
 	}
-	address := (*result)[0]
-	decoded_address, _ := btcutil.DecodeAddress(address, netParams)
-
-	// Mine some coins to the address
-	var tries *int64 = new(int64)
-	*tries = 1000
-	hashes, err := client.GenerateToAddress(110, decoded_address, tries)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Debugf("new blocks: ", len(hashes))
 
 	return true
 }

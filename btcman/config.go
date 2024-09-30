@@ -1,36 +1,40 @@
 package btcman
 
 type Config struct {
-	// BtcHost is the rpc host of the btc node
-	BtcHost string `mapstructure:"BtcHost"`
+	// Host is the rpc host of the btc node
+	Host string `mapstructure:"Host"`
 
-	// BtcNet is the type of network of the btc node
-	BtcNet string `mapstructure:"BtcNet"`
+	// Port is the rpc port of the btc node
+	Port string `mapstructure:"Port"`
 
-	// BtcWalletName is the wallet name of the btc node
-	BtcWalletName string `mapstructure:"BtcWalletName"`
+	// Net is the type of network of the btc node
+	Net string `mapstructure:"Net"`
 
-	// BtcWalletPass is the password of the btc wallet for the node
-	BtcWalletPass string `mapstructure:"BtcWalletPass"`
+	// WalletName is the wallet name of the btc node
+	WalletName string `mapstructure:"WalletName"`
 
-	// BtcRpcUser is the username for the rpc service
-	BtcRpcUser string `mapstructure:"BtcRpcUser"`
+	// WalletPass is the password of the btc wallet for the node
+	WalletPass string `mapstructure:"WalletPass"`
 
-	// BtcRpcPass is the password for the rpc service
-	BtcRpcPass string `mapstructure:"BtcRpcPass"`
+	// RpcUser is the username for the rpc service
+	RpcUser string `mapstructure:"RpcUser"`
 
-	// BtcPrivateKey is the private key for the btc node wallet
-	BtcPrivateKey string `mapstructure:"BtcPrivateKey"`
+	// RpcPass is the password for the rpc service
+	RpcPass string `mapstructure:"RpcPass"`
 
-	// BtcDisableTLS is a flag that disables the TLS
-	BtcDisableTLS bool `mapstructure:"BtcDisableTLS"`
+	// PrivateKey is the private key for the btc node wallet
+	PrivateKey string `mapstructure:"PrivateKey"`
+
+	// DisableTLS is a flat that disables the TLS
+	DisableTLS bool `mapstructure:"DisableTLS"`
 }
 
 func IsValidBtcConfig(cfg *Config) bool {
-	return cfg.BtcHost != "" &&
-		cfg.BtcRpcPass != "" &&
-		cfg.BtcRpcUser != "" &&
-		cfg.BtcWalletName != "" &&
-		cfg.BtcWalletPass != "" &&
-		cfg.BtcPrivateKey != ""
+	return cfg.Host != "" &&
+		cfg.Port != "" &&
+		cfg.RpcUser != "" &&
+		cfg.RpcPass != "" &&
+		cfg.WalletName != "" &&
+		cfg.PrivateKey != "" &&
+		cfg.Net != ""
 }
