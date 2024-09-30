@@ -3,6 +3,7 @@ package aggregator
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -359,16 +360,22 @@ func (a *Aggregator) settleDirect(
 
 	log.Debugf("data: %s", common.Bytes2Hex(data))
 
-	newLocalExitRoot := data[132:164]
-	newStateRoot := data[164:196]
-	proofData := data[228:]
+	newLocalExitRoot := hex.EncodeToString(data[132:164])
+	newStateRoot := hex.EncodeToString(data[164:196])
+	proofData := hex.EncodeToString(data[228:])
 
-	message := append(newLocalExitRoot, append(newStateRoot, proofData...)...)
-	log.Debugf("newLocalExitRoot: %s", common.Bytes2Hex(newLocalExitRoot))
-	log.Debugf("newStateRoot: %s", common.Bytes2Hex(newStateRoot))
-	log.Debugf("proof data: %s", common.Bytes2Hex(proofData))
-	log.Debugf("message: %s", common.Bytes2Hex(message))
-	revealTnxHash, err := a.Btcman.Inscribe(message)
+	message := fmt.Sprintf("%s%s%s", newLocalExitRoot, newStateRoot, proofData)
+	log.Debugf("newLocalExitRoot: %s", newLocalExitRoot)
+	log.Debugf("newStateRoot: %s", newStateRoot)
+	log.Debugf("proof data: %s", proofData)
+	log.Debugf("message: %s", message)
+
+	messageBytes, err := hex.DecodeString(message)
+	if err != nil {
+		log.Fatalf("Can't decode message %s", err)
+	}
+
+	revealTnxHash, err := a.Btcman.Inscribe(messageBytes)
 	if err != nil {
 		log.Fatalf("Can't create inscription %s", err)
 	}

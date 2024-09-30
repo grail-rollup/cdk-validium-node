@@ -104,6 +104,10 @@ func (client *Client) getUTXO(utxoThreshold, consolidateTxFee float64) (*btcjson
 	if err != nil {
 		return nil, err
 	}
+
+	if len(utxos) == 0 {
+		return nil, fmt.Errorf("there are no UTXOs for address %s", client.address)
+	}
 	utxoIndex := 0
 	utxo := utxos[utxoIndex]
 
