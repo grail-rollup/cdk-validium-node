@@ -18,6 +18,7 @@ import (
 	datastreamerlog "github.com/0xPolygonHermez/zkevm-data-streamer/log"
 	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
+	"github.com/0xPolygonHermez/zkevm-node/btcman"
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/dataavailability"
 	"github.com/0xPolygonHermez/zkevm-node/dataavailability/datacommittee"
@@ -134,6 +135,11 @@ func start(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 
+	btcman, err := btcman.NewClient(c.Btcman)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	c.Aggregator.ChainID = l2ChainID
 	c.Sequencer.StreamServer.ChainID = l2ChainID
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
@@ -169,7 +175,7 @@ func start(cliCtx *cli.Context) error {
 			if err != nil {
 				log.Fatal(err)
 			}
-			go runAggregator(cliCtx.Context, c.Aggregator, etherman, etm, st)
+			go runAggregator(cliCtx.Context, c.Aggregator, etherman, btcman, etm, st)
 		case SEQUENCER:
 			c.Sequencer.StreamServer.Log = datastreamerlog.Config{
 				Environment: datastreamerlog.LogEnvironment(c.Log.Environment),
@@ -545,7 +551,7 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 	return seqSender
 }
 
-func runAggregator(ctx context.Context, c aggregator.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State) {
+func runAggregator(ctx context.Context, c aggregator.Config, etherman *etherman.Client, btcman *btcman.Client, ethTxManager *ethtxmanager.Client, st *state.State) {
 	var (
 		aggCli *agglayerClient.Client
 		pk     *ecdsa.PrivateKey
@@ -562,7 +568,7 @@ func runAggregator(ctx context.Context, c aggregator.Config, etherman *etherman.
 		}
 	}
 
-	agg, err := aggregator.New(c, st, ethTxManager, etherman, aggCli, pk)
+	agg, err := aggregator.New(c, st, ethTxManager, etherman, btcman, aggCli, pk)
 	if err != nil {
 		log.Fatal(err)
 	}

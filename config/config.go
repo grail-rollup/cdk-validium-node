@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
+	"github.com/0xPolygonHermez/zkevm-node/btcman"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
@@ -90,6 +91,8 @@ type Config struct {
 	Log log.Config
 	// Configuration of the etherman (client for access L1)
 	Etherman etherman.Config
+	// Configuration of the bitcoin manager
+	Btcman btcman.Config
 	// Configuration for ethereum transaction manager
 	EthTxManager ethtxmanager.Config
 	// Pool service configuration
