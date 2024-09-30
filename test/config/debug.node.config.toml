@@ -6,65 +6,65 @@ Level = "debug"
 Outputs = ["stderr"]
 
 [State]
-	[State.DB]
-	User = "state_user"
-	Password = "state_password"
-	Name = "state_db"
-	Host = "localhost"
-	Port = "5432"
-	EnableLog = true
-	MaxConns = 10
-	[State.Batch]
-		[State.Batch.Constraints]
-		MaxTxsPerBatch = 300
-		MaxBatchBytesSize = 120000
-		MaxCumulativeGasUsed = 30000000
-		MaxKeccakHashes = 2145
-		MaxPoseidonHashes = 252357
-		MaxPoseidonPaddings = 135191
-		MaxMemAligns = 236585
-		MaxArithmetics = 236585
-		MaxBinaries = 473170
-		MaxSteps = 7570538
-		MaxSHA256Hashes = 1596
+[State.DB]
+User = "state_user"
+Password = "state_password"
+Name = "state_db"
+Host = "localhost"
+Port = "5432"
+EnableLog = true
+MaxConns = 10
+[State.Batch]
+[State.Batch.Constraints]
+MaxTxsPerBatch = 300
+MaxBatchBytesSize = 120000
+MaxCumulativeGasUsed = 30000000
+MaxKeccakHashes = 2145
+MaxPoseidonHashes = 252357
+MaxPoseidonPaddings = 135191
+MaxMemAligns = 236585
+MaxArithmetics = 236585
+MaxBinaries = 473170
+MaxSteps = 7570538
+MaxSHA256Hashes = 1596
 
 [Pool]
 FreeClaimGasLimit = 1500000
 IntervalToRefreshBlockedAddresses = "5m"
 IntervalToRefreshGasPrices = "5s"
-MaxTxBytesSize=30132
-MaxTxDataBytesSize=30000
+MaxTxBytesSize = 30132
+MaxTxDataBytesSize = 30000
 DefaultMinGasPriceAllowed = 1000000000
 MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
 AccountQueue = 64
 GlobalQueue = 1024
-	[Pool.EffectiveGasPrice]
-		Enabled = false
-		L1GasPriceFactor = 0.25
-		ByteGasCost = 16
-		ZeroByteGasCost = 4
-		NetProfit = 1
-	    BreakEvenFactor = 1.1			
-		FinalDeviationPct = 10
-		EthTransferGasPrice = 0
-		EthTransferL1GasPriceFactor = 0			
-		L2GasPriceSuggesterFactor = 0.5
-	[Pool.DB]
-	User = "pool_user"
-	Password = "pool_password"
-	Name = "pool_db"
-	Host = "localhost"
-	Port = "5433"
-	EnableLog = false
-	MaxConns = 10
+[Pool.EffectiveGasPrice]
+Enabled = false
+L1GasPriceFactor = 0.25
+ByteGasCost = 16
+ZeroByteGasCost = 4
+NetProfit = 1
+BreakEvenFactor = 1.1
+FinalDeviationPct = 10
+EthTransferGasPrice = 0
+EthTransferL1GasPriceFactor = 0
+L2GasPriceSuggesterFactor = 0.5
+[Pool.DB]
+User = "pool_user"
+Password = "pool_password"
+Name = "pool_db"
+Host = "localhost"
+Port = "5433"
+EnableLog = false
+MaxConns = 10
 
 [Etherman]
 URL = "http://localhost:8545"
 ForkIDChunkSize = 20000
 MultiGasProvider = false
-	[Etherman.Etherscan]
-		ApiKey = ""
+[Etherman.Etherscan]
+ApiKey = ""
 
 [Btcman]
 Host = "host.docker.internal"
@@ -75,6 +75,9 @@ WalletName = "go-wallet"
 PrivateKey = "cSaejkcWwU25jMweWEewRSsrVQq2FGTij1xjXv4x1XvxVRF1ZCr3"
 Net = "regtest"
 
+[Indexer]
+IndexerHost = "host.docker.internal:50001"
+
 [RPC]
 Host = "0.0.0.0"
 Port = 8123
@@ -83,9 +86,9 @@ WriteTimeout = "60s"
 MaxRequestsPerIPAndSecond = 10000
 SequencerNodeURI = ""
 EnableL2SuggestedGasPricePolling = true
-	[RPC.WebSockets]
-		Enabled = true
-		Port = 8133
+[RPC.WebSockets]
+Enabled = true
+Port = 8133
 
 [Synchronizer]
 SyncInterval = "5s"
@@ -99,30 +102,30 @@ TxLifetimeCheckInterval = "10m"
 TxLifetimeMax = "3h"
 LoadPoolTxsCheckInterval = "500ms"
 StateConsistencyCheckInterval = "5s"
-	[Sequencer.Finalizer]
-		NewTxsWaitInterval = "100ms"
-		ForcedBatchesTimeout = "5s"
-		ForcedBatchesL1BlockConfirmations = 0
-		ForcedBatchesCheckInterval = "10s"
-		L1InfoTreeL1BlockConfirmations = 0
-		L1InfoTreeCheckInterval = "10s"
-		BatchMaxDeltaTimestamp = "60s"
-		L2BlockMaxDeltaTimestamp = "3s"		
-		ResourceExhaustedMarginPct = 10
-		StateRootSyncInterval = "120s"
-		FlushIdCheckInterval = "50ms"
-		HaltOnBatchNumber = 0
-		SequentialBatchSanityCheck = false
-		SequentialProcessL2Block = false
-	[Sequencer.Finalizer.Metrics]
-		Interval = "60m"
-		EnableLog = true		
-	[Sequencer.StreamServer]
-		Port = 6900
-		Filename = "/datastreamer/datastream.bin"
-		Version = 1
-		WriteTimeout = "5s"
-		Enabled = true
+[Sequencer.Finalizer]
+NewTxsWaitInterval = "100ms"
+ForcedBatchesTimeout = "5s"
+ForcedBatchesL1BlockConfirmations = 0
+ForcedBatchesCheckInterval = "10s"
+L1InfoTreeL1BlockConfirmations = 0
+L1InfoTreeCheckInterval = "10s"
+BatchMaxDeltaTimestamp = "60s"
+L2BlockMaxDeltaTimestamp = "3s"
+ResourceExhaustedMarginPct = 10
+StateRootSyncInterval = "120s"
+FlushIdCheckInterval = "50ms"
+HaltOnBatchNumber = 0
+SequentialBatchSanityCheck = false
+SequentialProcessL2Block = false
+[Sequencer.Finalizer.Metrics]
+Interval = "60m"
+EnableLog = true
+[Sequencer.StreamServer]
+Port = 6900
+Filename = "/datastreamer/datastream.bin"
+Version = 1
+WriteTimeout = "5s"
+Enabled = true
 
 [SequenceSender]
 WaitPeriodSendSequence = "15s"
@@ -131,7 +134,7 @@ L1BlockTimestampMargin = "5s"
 MaxTxSizeForL1 = 131072
 SequenceL1BlockConfirmations = 2
 L2Coinbase = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-PrivateKey = {Path = "./test/sequencer.keystore", Password = "testonly"}
+PrivateKey = { Path = "./test/sequencer.keystore", Password = "testonly" }
 
 [Aggregator]
 Host = "0.0.0.0"
@@ -150,8 +153,8 @@ BatchProofL1BlockConfirmations = 2
 [EthTxManager]
 ForcedGas = 0
 PrivateKeys = [
-	{Path = "../test/sequencer.keystore", Password = "testonly"},
-	{Path = "../test/aggregator.keystore", Password = "testonly"}
+	{ Path = "../test/sequencer.keystore", Password = "testonly" },
+	{ Path = "../test/aggregator.keystore", Password = "testonly" },
 ]
 
 [L2GasPriceSuggester]
@@ -175,11 +178,11 @@ ProfilingPort = 6060
 ProfilingEnabled = false
 
 [EventLog]
-	[EventLog.DB]
-	User = "event_user"
-	Password = "event_password"
-	Name = "event_db"
-	Host = "localhost"
-	Port = "5435"
-	EnableLog = false
-	MaxConns = 200
+[EventLog.DB]
+User = "event_user"
+Password = "event_password"
+Name = "event_db"
+Host = "localhost"
+Port = "5435"
+EnableLog = false
+MaxConns = 200

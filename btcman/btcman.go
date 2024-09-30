@@ -117,7 +117,7 @@ func (client *Client) getUTXO(utxoThreshold, consolidateTxFee float64) (*btcjson
 			return nil, err
 		}
 		if consolidateTxHash != nil {
-			log.Infof("UTXOs consolidated successfully: %s", consolidateTxHash.String())
+			log.Infof("Inscriptor: UTXOs consolidated successfully: %s", consolidateTxHash.String())
 
 			utxos, err = client.listUnspent()
 			if err != nil {
@@ -160,7 +160,7 @@ func (client *Client) consolidateUTXOS(utxos []btcjson.ListUnspentResult, thresh
 	}
 
 	if len(inputs) < minUtxoCount {
-		log.Infof("Not enough UTXOs under the specified amount to consolidate. [%d/%d utoxs under %f]", len(inputs), minUtxoCount, threshold)
+		log.Infof("Inscriptor: not enough UTXOs under the specified amount to consolidate. [%d/%d utoxs under %f]", len(inputs), minUtxoCount, threshold)
 		return nil, nil
 	}
 
@@ -172,7 +172,7 @@ func (client *Client) consolidateUTXOS(utxos []btcjson.ListUnspentResult, thresh
 
 	rawTx, err := client.BtcClient.CreateRawTransaction(inputs, outputs, nil)
 	if err != nil {
-		log.Fatalf("error creating raw transaction: %v", err)
+		log.Fatalf("Inscriptor: error creating raw transaction: %v", err)
 	}
 
 	signedTx, _, err := client.BtcClient.SignRawTransactionWithWallet(rawTx)
@@ -202,14 +202,14 @@ func (client *Client) getIndexOfUtxoAboveThreshold(threshold float64, utxos []bt
 func (client *Client) createInscriptionRequest(data []byte, utxoThreshold, consolidateTxFee float64) (*InscriptionRequest, error) {
 	utxo, err := client.getUTXO(utxoThreshold, consolidateTxFee)
 	if err != nil {
-		log.Errorf("Can't find utxo %s", err)
+		log.Errorf("Inscriptor: can't find utxo %s", err)
 		return nil, err
 	}
 
 	commitTxOutPoint := new(wire.OutPoint)
 	inTxid, err := chainhash.NewHashFromStr(utxo.TxID)
 	if err != nil {
-		log.Error("Failed to create inscription request")
+		log.Error("Inscriptor: failed to create inscription request")
 		return nil, err
 	}
 
@@ -238,13 +238,13 @@ func (client *Client) createInscriptionRequest(data []byte, utxoThreshold, conso
 func (client *Client) createInscriptionTool(message []byte, utxoThreshold, consolidateTxFee float64) (*InscriptionTool, error) {
 	request, err := client.createInscriptionRequest(message, utxoThreshold, consolidateTxFee)
 	if err != nil {
-		log.Errorf("Failed to create inscription request: %s", err)
+		log.Errorf("Inscriptor: failed to create inscription request: %s", err)
 		return nil, err
 	}
 
 	tool, err := NewInscriptionTool(client.netParams, client.BtcClient, request)
 	if err != nil {
-		log.Errorf("Failed to create inscription tool: %s", err)
+		log.Errorf("Inscriptor: failed to create inscription tool: %s", err)
 		return nil, err
 	}
 	return tool, nil
@@ -257,22 +257,22 @@ func (client *Client) Inscribe(data []byte) (string, error) {
 
 	tool, err := client.createInscriptionTool(data, utxoThreshold, consolidateTxFee)
 	if err != nil {
-		log.Errorf("Can't create inscription tool: %s", err)
+		log.Errorf("Inscriptor: can't create inscription tool: %s", err)
 		return "", err
 	}
 
 	commitTxHash, revealTxHashList, inscriptions, fees, err := tool.Inscribe()
 	if err != nil {
-		log.Errorf("send tx errr, %v", err)
+		log.Errorf("Inscriptor: send tx errr, %v", err)
 		return "", err
 	}
 	revealTxHash := revealTxHashList[0]
 	inscription := inscriptions[0]
 
-	log.Infof("CommitTxHash: %s", commitTxHash.String())
-	log.Infof("RevealTxHash: %s", revealTxHash.String())
-	log.Infof("Inscription: %s", inscription)
-	log.Infof("Fees: %d", fees)
+	log.Infof("Inscriptor: commitTxHash => %s", commitTxHash.String())
+	log.Infof("Inscriptor: revealTxHash => %s", revealTxHash.String())
+	log.Infof("Inscriptor: inscription => %s", inscription)
+	log.Infof("Inscriptor: fees => %d", fees)
 
 	return revealTxHash.String(), nil
 }
